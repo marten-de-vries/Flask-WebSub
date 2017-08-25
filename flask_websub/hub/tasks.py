@@ -1,0 +1,131 @@
+from flask import current_app
+import requests
+
+import base64
+import random
+
+from ..utils import get_content, is_expired, calculate_hmac, request_url, \
+                    warn, now, uuid4
+from ..errors import NotificationError
+
+__all__ = ('send_change_notification', 'make_request_retrying', 'subscribe',
+           'unsubscribe')
+
+INVALID_LINK = "The Link header should contain both 'self' and 'hub' urls"
+NO_UPDATED_CONTENT = "Cannot get latest content from topic URL"
+INTENT_UNVERIFIED = "Cannot verify subscriber intent - %s: %s"
+
+
+# standalone tasks
+def send_change_notification(hub, topic_url, updated_content=None):
+    """7. Content Distribution"""
+
+    try:
+        updated_content = updated_content or get_content(topic_url)
+    except requests.exceptions.RequestException as e:
+        raise NotificationError(NO_UPDATED_CONTENT) from e
+
+    headers = updated_content.headers
+    link_header = headers.get('Link', '')
+    if 'rel="hub"' not in link_header or 'rel="self"' not in link_header:
+        raise NotificationError(INVALID_LINK)
+
+    body = updated_content.content
+    encoded_body = base64.b64encode(body).decode('ascii')
+    for subscription in hub.storage.get_callbacks(topic_url):
+        if not is_expired(subscription):
+            schedule_request(hub, topic_url, subscription, body, encoded_body,
+                             headers)
+
+
+def schedule_request(hub, topic_url, subscription, body, encoded_body,
+                     headers):
+    specific_headers = dict(headers)
+    if subscription['secret']:
+        # 7.1 Authenticated Content Distribution
+        #
+        # Default to the strongest algorithm currently in the spec. Better
+        # safe than sorry.
+        algo = current_app.config.get('SIGNATURE_ALGORITHM', 'sha512')
+        hmac = calculate_hmac(algo, subscription['secret'], body)
+        specific_headers['X-Hub-Signature'] = algo + '=' + hmac
+    hub.make_request_retrying.delay(topic_url, subscription['callback_url'],
+                                    specific_headers, encoded_body)
+
+
+# the next task is not meant to be user-facing
+def make_request_retrying(self, hub, topic_url, callback, headers, b64_body):
+    # retry for about an hour by default (enter in the formula & divide by 2
+    # due to jitter)
+    # https://www.awsarchitectureblog.com/2015/03/backoff.html
+    # See also hub/__init__.py for the amount of retry attempts
+    backoff_base = current_app.config.get('BACKOFF_BASE', 8.0)
+
+    body = base64.b64decode(b64_body)
+    try:
+        resp = request_url('POST', callback, headers=headers, data=body)
+        assert 200 <= resp.status_code < 300 or resp.status_code == 410
+    except (requests.exceptions.RequestException, AssertionError) as e:
+        warn("Notification failed", e)
+        countdown = random.uniform(0, backoff_base * 2 ** self.request.retries)
+        self.retry(countdown=countdown)
+    else:
+        if resp.status_code == 410:  # 'Gone': send no further notifications
+            del hub.storage[topic_url, callback]
+
+
+# route helpers (for internal use only)
+def subscribe(hub, callback_url, topic_url, lease_seconds, secret):
+    """5.2 Subscription Validation"""
+
+    for validate in hub.validators:
+        error = validate(callback_url, topic_url)
+        if error:
+            send_denied(error)
+            return
+
+    if intent_verified(callback_url, 'subscribe', topic_url, lease_seconds):
+        hub.storage[topic_url, callback_url] = {
+            'expiration_time': now() + lease_seconds,
+            'secret': secret,
+        }
+
+
+def send_denied(callback_url, topic_url, error):
+    try:
+        request_url('GET', callback_url, params={
+            'hub.mode': 'denied',
+            'hub.topic': topic_url,
+            'hub.reason': error,
+        })
+    except requests.exceptions.RequestException as e:
+        warn("Could not send subscription validation result", e)
+
+
+def intent_verified(callback_url, mode, topic_url, lease_seconds):
+    """ 5.3 Hub Verifies Intent of the Subscriber"""
+
+    challenge = uuid4()
+    params = {
+        'hub.mode': mode,
+        'hub.topic': topic_url,
+        'hub.challenge': challenge,
+        'hub.lease_seconds': lease_seconds,
+    }
+    try:
+        response = request_url('GET', callback_url, params=params)
+        assert response.status_code == 200 and response.text == challenge
+    except requests.exceptions.RequestException as e:
+        warn("Cannot verify subscriber intent", e)
+    except AssertionError as e:
+        warn(INTENT_UNVERIFIED % (response.status_code, response.content), e)
+    else:
+        return True
+    return False
+
+
+def unsubscribe(hub, callback_url, topic_url, lease_seconds):
+    # we could check here if the subscription actually exists, but that would
+    # slow down the common case and just be more work.
+    if intent_verified(callback_url, 'unsubscribe', topic_url, lease_seconds):
+        del hub.storage[topic_url, callback_url]
