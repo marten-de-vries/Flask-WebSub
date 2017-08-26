@@ -6,6 +6,10 @@ import html.parser
 
 
 def discover(url):
+    """Discover the hub url and topic url of a given url. Firstly, by inspecting
+    the page's headers, secondarily by inspecting the content for link tags.
+
+    """
     resp = get_content(url)
 
     parser = LinkParser()

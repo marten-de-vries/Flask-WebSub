@@ -24,6 +24,37 @@ RENEW_FAILURE = "Could not renew subscription (%s, %s)"
 
 
 class Subscriber(EventMixin):
+    """A subscriber takes the following constructor arguments:
+    - an AbstractSubscriberStorage instance for long-term data storage
+    - an AbstractTempSubscriberStorage instance for short-term data storage
+    - a flask app, on which a blueprint with the required callbacks is
+      registered
+    - url_prefix (keyword argument), to change the place where said blueprint
+      is registered.
+
+    It exposes the following methods:
+
+    - subscribe
+    - unsubscribe
+    - renew
+    - renew_close_to_expiration
+    - cleanup
+
+    The subscriber of course also needs to be able to notify you when a
+    notification from the hub is sent. You can register one or more functions
+    to handle this for you. Similarly, you can register handlers for
+    subscription successes and failures (as this is an asynchronous process,
+    the above methods will only tell you about errors they can detect
+    up-front.) You can pass your handler functions to:
+
+    - add_listener; a handler should expect (topic_url, callback_url, body) as
+      arguments on a notification.
+    - add_error_handler; a handler should expect (topic_url, callback_url,
+      reason) as arguments.
+    - add_success_handler; a handler should expect (topic_url, callback_url,
+      mode) as arguments. Mode is a string: either 'publish' or 'unpublish'.
+
+    """
     def __init__(self, storage, temp_storage, app, **opts):
         super().__init__()
 
@@ -33,6 +64,30 @@ class Subscriber(EventMixin):
         app.register_blueprint(blueprint)
 
     def subscribe(self, **subscription_request):
+        """Subscribe to a certain topic. All arguments are keyword arguments.
+        They are:
+
+        - topic_url: the url of the topic to subscribe to.
+        - hub_url: the url of the hub that the topic url links to.
+        - secret (optional): a secret to use in the communication. If
+          AUTO_SET_SECRET is enabled (and it is by default), the library
+          creates a random secret for you, unless you override it.
+        - lease_seconds (optional): the lease length you request from the
+          hub. Note that the hub may override it. If it's not given, the hub
+          gets to decide by itself.
+
+        Note that, while possible, it is not always necessary to find the
+        topic_url and hub_url yourself. If you have a WebSub-supporting URL,
+        you can find them using the discover function. That makes calling this
+        function as simple as:
+
+        subscriber.subscribe(**discover('http://some_websub_supporting.url'))
+
+        This function returns a callback_id. This value is an implementation
+        detail, so you should not ascribe any meaning to it other than it being
+        a unique identifier of the subscription.
+
+        """
         return self.subscribe_impl(mode='subscribe', **subscription_request)
 
     def subscribe_impl(self, callback_id=None, **request):
@@ -71,6 +126,10 @@ class Subscriber(EventMixin):
         return callback_id
 
     def unsubscribe(self, callback_id):
+        """Ask the hub to cancel the subscription for callback_id, then delete
+        it from the local database if successful.
+
+        """
         request = self.get_active_subscription(callback_id)
         request['mode'] = 'unsubscribe'
         self.subscribe_impl(callback_id, **request)
@@ -84,12 +143,23 @@ class Subscriber(EventMixin):
             return subscription
 
     def renew(self, callback_id):
+        """Renew the subscription given by callback_id with the hub. Note that
+        this should work even when the subscription has expired.
+
+        """
         return self.subscribe_impl(callback_id,
                                    **self.get_active_subscription(callback_id))
 
     def renew_close_to_expiration(self, margin_in_seconds=A_DAY):
-        """This is a long-running method for any non-trivial usage of the
-        subscriber module. It is recommended to run it in a celery task.
+        """Automatically renew subscriptions that are close to expiring, or
+        have already expired. margin_in_seconds determines if a subscription is
+        in fact close to expiring. By default, said margin is set to be a
+        single day (24 hours).
+
+        This is a long-running method for any non-trivial usage of the
+        subscriber module, as renewal requires several http requests, and
+        subscriptions are processed serially. Because of that, it is
+        recommended to run this method in a celery task.
 
         """
         subscriptions = self.storage.close_to_expiration(margin_in_seconds)
