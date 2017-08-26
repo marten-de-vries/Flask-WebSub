@@ -5,8 +5,8 @@ with open('README.md', encoding='UTF-8') as f:
 
 setup(
     name='Flask-WebSub',
-    version='0.1',
-    url='https://github.com//',
+    version='0.1.1',
+    url='https://github.com/marten-de-vries/Flask-WebSub',
     license='ISC',
     author='Marten de Vries',
     author_email='m@rtendevri.es',
