@@ -82,3 +82,9 @@ def logging_race_condition(*key):
         yield
     except KeyError as e:
         warn(RACE_CONDITION % key, e)
+
+
+def secret_too_big(secret):
+    # 200 bytes actually (not characters), but this is close enough as a
+    # sanity check
+    return len(secret) >= 200

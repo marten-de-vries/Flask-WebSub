@@ -35,12 +35,13 @@ class AbstractHubStorage(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def get_callbacks(self, topic_url):
-        """A generator function that should return dict like objects with the
-        following keys:
+        """A generator function that should return tuples with the following
+        values for each item in storage that has a matching topic_url:
 
         - callback_url
-        - expiration_time
         - secret
+
+        Note that expired objects should not be yielded.
 
         """
 
@@ -60,7 +61,11 @@ insert into hub(topic_url, callback_url, expiration_time, secret)
 values (?, ?, ?, ?)
 """
 GET_CALLBACKS_SQL = """
-select callback_url, expiration_time, secret from hub where topic_url=?
+select callback_url, secret from hub
+where topic_url=? and expiration_time > ?
+"""
+CLEANUP_EXPIRED_SUBSCRIPTIONS_SQL = """
+delete from hub where expiration_time <= ?
 """
 
 
@@ -73,7 +78,6 @@ class SQLite3HubStorage(AbstractHubStorage):
     @contextlib.contextmanager
     def cursor(self):
         with sqlite3.connect(self.path) as connection:
-            connection.row_factory = sqlite3.Row
             yield connection.cursor()
 
     def __delitem__(self, key):
@@ -83,11 +87,11 @@ class SQLite3HubStorage(AbstractHubStorage):
     def __setitem__(self, key, value):
         with self.cursor() as cur:
             cur.execute(SETITEM_SQL, key + (value['expiration_time'],
-                                            value['secret']))
+                                            value['secret']),)
 
     def get_callbacks(self, topic_url):
         with self.cursor() as cur:
-            cur.execute(GET_CALLBACKS_SQL, (topic_url,))
+            cur.execute(GET_CALLBACKS_SQL, (topic_url, now(),))
             while True:
                 row = cur.fetchone()
                 if not row:
@@ -96,4 +100,4 @@ class SQLite3HubStorage(AbstractHubStorage):
 
     def cleanup_expired_subscriptions(self):
         with self.cursor() as cur:
-            cur.execute("delete from hub where expiration_time <= ?", (now(),))
+            cur.execute(CLEANUP_EXPIRED_SUBSCRIPTIONS_SQL, (now(),))

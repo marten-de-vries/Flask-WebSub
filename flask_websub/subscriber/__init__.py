@@ -4,7 +4,7 @@ import requests
 import contextlib
 
 from ..storage import get_storage
-from ..utils import now, uuid4, request_url, is_expired
+from ..utils import now, uuid4, request_url, is_expired, secret_too_big
 from ..errors import SubscriberError, HubNotRespondingError
 
 from .discovery import discover
@@ -35,8 +35,9 @@ def subscribe_impl(callback_id=None, **subscription):
     }
     with contextlib.suppress(KeyError):
         args['hub.lease_seconds'] = subscription['lease_seconds']
+        if subscription['lease_seconds'] <= 0:
+            raise SubscriberError("lease_seconds should be a positive integer")
     add_secret_to_args(args, subscription, is_secure(subscription['hub_url']))
-    assert 'topic_url' in subscription
     # one hour should be enough time for the hub to answer. If the hub
     # didn't answer for so long, we can forget about the request.
     subscription.update(expiration_time=now() + 60 * 60,
@@ -69,10 +70,8 @@ def add_secret_to_args(args, subscription, hub_is_secure):
         # check the invariant for using secrets
         if not hub_is_secure:
             raise SubscriberError(NO_SECRET_WITH_HTTP)
-        # 200 bytes actually (not characters), but this is close enough as a
-        # sanity check
-        if len(subscription['secret']) >= 200:
-            raise SubscriberError("Secret too big (should be < 200 bytes)")
+        if secret_too_big(subscription['secret']):
+            raise SubscriberError("Secret is too big.")
         args['hub.secret'] = subscription['secret']
 
 

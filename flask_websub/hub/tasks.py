@@ -4,8 +4,7 @@ import requests
 import base64
 import random
 
-from ..utils import get_content, is_expired, calculate_hmac, request_url, \
-                    warn, now, uuid4
+from ..utils import get_content, calculate_hmac, request_url, warn, now, uuid4
 from ..errors import NotificationError
 
 __all__ = ('send_change_notification', 'make_request_retrying', 'subscribe',
@@ -31,26 +30,25 @@ def send_change_notification(hub, topic_url, updated_content=None):
         raise NotificationError(INVALID_LINK)
 
     body = updated_content.content
-    encoded_body = base64.b64encode(body).decode('ascii')
-    for subscription in hub.storage.get_callbacks(topic_url):
-        if not is_expired(subscription):
-            schedule_request(hub, topic_url, subscription, body, encoded_body,
-                             headers)
+    b64_body = base64.b64encode(body).decode('ascii')
+    for callback_url, secret in hub.storage.get_callbacks(topic_url):
+        schedule_request(hub, topic_url, callback_url, secret, body, b64_body,
+                         headers)
 
 
-def schedule_request(hub, topic_url, subscription, body, encoded_body,
+def schedule_request(hub, topic_url, callback_url, secret, body, encoded_body,
                      headers):
     specific_headers = dict(headers)
-    if subscription['secret']:
+    if secret:
         # 7.1 Authenticated Content Distribution
         #
         # Default to the strongest algorithm currently in the spec. Better
         # safe than sorry.
         algo = current_app.config.get('SIGNATURE_ALGORITHM', 'sha512')
-        hmac = calculate_hmac(algo, subscription['secret'], body)
+        hmac = calculate_hmac(algo, secret, body)
         specific_headers['X-Hub-Signature'] = algo + '=' + hmac
-    hub.make_request_retrying.delay(topic_url, subscription['callback_url'],
-                                    specific_headers, encoded_body)
+    hub.make_request_retrying.delay(topic_url, callback_url, specific_headers,
+                                    encoded_body)
 
 
 # the next task is not meant to be user-facing
@@ -81,7 +79,7 @@ def subscribe(hub, callback_url, topic_url, lease_seconds, secret):
     for validate in hub.validators:
         error = validate(callback_url, topic_url)
         if error:
-            send_denied(error)
+            send_denied(callback_url, topic_url, error)
             return
 
     if intent_verified(callback_url, 'subscribe', topic_url, lease_seconds):

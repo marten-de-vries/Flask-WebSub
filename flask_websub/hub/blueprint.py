@@ -1,7 +1,7 @@
 from flask import Blueprint, abort, request, current_app, \
                   _app_ctx_stack as stack
 
-from ..utils import parse_lease_seconds
+from ..utils import parse_lease_seconds, secret_too_big
 
 INVALID_MODE = "Invalid hub.mode (should be 'subscribe' or 'unsubscribe'): "
 
@@ -27,6 +27,8 @@ def endpoint():
         callback_url = get_form_arg('hub.callback')
     lease_seconds = get_lease_seconds()
     secret = request.form.get('hub.secret')
+    if secret and secret_too_big(secret):
+        abort(400, "Secret is too big (should be < 200 bytes)")
 
     hub = stack.top.hub
     publish_supported = current_app.config.get('PUBLISH_SUPPORTED', False)
@@ -38,7 +40,7 @@ def endpoint():
         hub.send_change_notification.delay(topic_url)
     else:
         abort(400, INVALID_MODE + mode)
-    return 'Request received: ' + mode, 202
+    return "Request received: %s\n" % mode, 202
 
 
 # route helpers
@@ -64,3 +66,8 @@ def get_lease_seconds():
     else:
         # make sure the user value is within server bounds. If not, force it.
         return min(max(lease_seconds, min_lease), max_lease)
+
+
+@hub_blueprint.errorhandler(400)
+def handle_bad_request(error):
+    return error.description + '\n', 400
