@@ -13,6 +13,10 @@ HUB_LINK = '<link rel="hub" href="%s" />'
 
 
 def init_publisher(app):
+    """Calling this with your flask app as argument is required for the
+    publisher decorator to work.
+
+    """
     @app.context_processor
     def inject_links():
         return {
@@ -24,6 +28,29 @@ def init_publisher(app):
 
 
 def publisher(self_url=None, hub_url=None):
+    """This decorator makes it easier to implement a websub publisher. You use
+    it on an endpoint, and Link headers will automatically be added. To also
+    include these links in your template html/atom/rss (and you should!) you
+    can use the following to get the raw links:
+
+    - {{ websub_self_url }}
+    - {{ websub_hub_url }}
+
+    And the following to get them wrapped in <link tags>:
+
+    - {{ websub_self_link }}
+    - {{ websub_hub_link }}
+
+    If hub_url is not given, the hub needs to be a flask_websub one and the
+    hub and publisher need to share their application for the url to be
+    auto-discovered. If that is not the case, you need to set
+    config['HUB_URL'].
+
+    If self_url is not given, the url of the current request will be used. Note
+    that this includes url query arguments. If this is not what you want,
+    override it.
+
+    """
     def decorator(topic_view):
         @functools.wraps(topic_view)
         def wrapper(*args, **kwargs):
@@ -32,8 +59,6 @@ def publisher(self_url=None, hub_url=None):
             if not self_url:
                 self_url = request.url
             if not hub_url:
-                # If hub_url is not set, the hub and publisher need to share
-                # their application for the url to be auto-discovered
                 try:
                     hub_url = url_for('websub_hub.endpoint', _external=True)
                 except BuildError:
