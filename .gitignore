@@ -1,3 +1,4 @@
 __pycache__
 server_data.sqlite3
+client_data.sqlite3
 venv

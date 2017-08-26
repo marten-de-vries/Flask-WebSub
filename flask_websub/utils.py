@@ -5,12 +5,14 @@ import requests
 import contextlib
 import hashlib
 import hmac
-import time
+import sqlite3
 import uuid
 
 INVALID_LEASE = "Invalid hub.lease_seconds (should be a positive integer)"
 RACE_CONDITION = ("Race condition. Subscription '%s' disappeared during this "
                   "request")
+A_MINUTE = 60
+A_DAY = A_MINUTE * 60 * 24
 
 
 # Source: http://flask.pocoo.org/docs/0.12/patterns/celery/
@@ -30,14 +32,6 @@ def make_celery(app):
 
     celery.Task = ContextTask
     return celery
-
-
-def is_expired(subscription, margin_in_seconds=0):
-    return subscription['expiration_time'] < now() + margin_in_seconds
-
-
-def now():
-    return int(round(time.time()))
 
 
 def parse_lease_seconds(value):
@@ -88,3 +82,19 @@ def secret_too_big(secret):
     # 200 bytes actually (not characters), but this is close enough as a
     # sanity check
     return len(secret) >= 200
+
+
+class SQLite3StorageMixin:
+    def __init__(self, path):
+        """Path should be where you want to save the sqlite3 database."""
+
+        self.path = path
+        self.conn.execute(self.TABLE_SETUP_SQL)
+
+    @property
+    def conn(self):
+        connection = sqlite3.connect(self.path)
+        connection.row_factory = sqlite3.Row
+        # allow writing and reading at the same time:
+        connection.execute('PRAGMA journal_mode=wal')
+        return connection

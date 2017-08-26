@@ -4,7 +4,7 @@ import requests
 import base64
 import random
 
-from ..utils import get_content, calculate_hmac, request_url, warn, now, uuid4
+from ..utils import get_content, calculate_hmac, request_url, warn, uuid4
 from ..errors import NotificationError
 
 __all__ = ('send_change_notification', 'make_request_retrying', 'subscribe',
@@ -84,7 +84,7 @@ def subscribe(hub, callback_url, topic_url, lease_seconds, secret):
 
     if intent_verified(callback_url, 'subscribe', topic_url, lease_seconds):
         hub.storage[topic_url, callback_url] = {
-            'expiration_time': now() + lease_seconds,
+            'lease_seconds': lease_seconds,
             'secret': secret,
         }
 

@@ -1,8 +1,6 @@
-from flask import _app_ctx_stack as stack
-
 import functools
 
-from .blueprint import hub_blueprint, A_DAY
+from .blueprint import build_blueprint, A_DAY
 from .tasks import make_request_retrying, send_change_notification, \
                    subscribe, unsubscribe
 from .storage import SQLite3HubStorage
@@ -12,28 +10,22 @@ __all__ = ('Hub', 'SQLite3HubStorage')
 
 class Hub:
     """The user interface to this module. The constructor requires a storage
-    object. Before usage, you should also call the init method with a flask app
-    and a celery object. The last can be (but does not have to be) created
-    using `flask_websub.utils.make_celery(app)``. Any further options passed in
-    to init() are passed onto the app.register_blueprint() function when the
-    single route of the hub is registered. This makes it possible to e.g.
-    change the location of the endpoint by setting the url_prefix keyword
-    argument.
+    object, a flask app and a celery object. The last can be (but does not have
+    to be) created using `flask_websub.utils.make_celery(app)``. Any further
+    options passed in to the constructor are passed onto the
+    app.register_blueprint() function when the single route of the hub is
+    registered. This makes it possible to e.g. change the location of the
+    endpoint by setting the url_prefix keyword argument.
 
     User-facing properties have doc strings. Other properties should be
     considered implementation details.
 
     """
-    def __init__(self, storage):
+    def __init__(self, storage, app, celery, **opts):
         self.validators = []
         self.storage = storage
 
-    def init(self, app, celery, **opts):
-        app.register_blueprint(hub_blueprint, **opts)
-
-        @app.before_request
-        def attach_hub():
-            stack.top.hub = self
+        app.register_blueprint(build_blueprint(self, **opts))
 
         def task_with_hub(f, **opts):
             @functools.wraps(f)

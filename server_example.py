@@ -11,12 +11,12 @@ app = Flask(__name__)
 app.config['SERVER_NAME'] = 'home.marten-de-vries.nl:8080'
 app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379'
 app.config['PUBLISH_SUPPORTED'] = True  # not recommended, but nice for testing
-celery = make_celery(app)
 
 init_publisher(app)
 
-hub = Hub(SQLite3HubStorage('server_data.sqlite3'))
-hub.init(app, celery, url_prefix='/hub')
+store = SQLite3HubStorage('server_data.sqlite3')
+celery = make_celery(app)
+hub = Hub(store, app, celery, url_prefix='/hub')
 
 
 def validate_topic_existence(callback_url, topic_url):
