@@ -5,7 +5,7 @@ with open('README.md', encoding='UTF-8') as f:
 
 setup(
     name='Flask-WebSub',
-    version='0.1.1',
+    version='0.1.2',
     url='https://github.com/marten-de-vries/Flask-WebSub',
     license='ISC',
     author='Marten de Vries',
@@ -15,9 +15,10 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     platforms='any',
-    install_requires=['Flask'],
-    extra_require={
+    install_requires=['Flask', 'requests'],
+    extras_require={
         'celery': ['celery'],
+        'redis': ['redis'],
     },
     classifiers=[
         'Environment :: Web Environment',

@@ -34,8 +34,16 @@ Then, it's time to update server_example.py and client_example.py's SERVER_NAME
 config variable. Simply set them to whatever hostname the server will have (it
 can just be localhost).
 
+I recommend installing the dependencies in a virtualenv:
+
+```
+python3 -m venv venv # create the virtualenv
+source venv/bin/activate # activate the virtualenv
+pip install -e .[celery,redis] # install the dependencies
+```
+
 Finally, it's time to start the applications. Each line in a different
-terminal:
+terminal (assuming the virtualenv is active in each):
 
 ```
 celery -A server_example.celery worker -l info
