@@ -5,25 +5,33 @@ from flask import Flask, render_template, url_for
 # There's no need to do so, though.
 from flask_websub.publisher import publisher, init_publisher
 from flask_websub.hub import Hub, SQLite3HubStorage
-from flask_websub.utils import make_celery
+from celery import Celery
 
+# app & celery
 app = Flask(__name__)
 app.config['SERVER_NAME'] = 'home.marten-de-vries.nl:8080'
-app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379'
-app.config['PUBLISH_SUPPORTED'] = True  # not recommended, but nice for testing
+celery = Celery('sever_example', broker='redis://localhost:6379')
 
+# initialise publisher
 init_publisher(app)
 
-store = SQLite3HubStorage('server_data.sqlite3')
-celery = make_celery(app)
-hub = Hub(store, app, celery, url_prefix='/hub')
+# initialise hub
+#
+# PUBLISH_SUPPORTED is not recommended in production, as it just accepts any
+# link without validation, but it's but nice for testing.
+app.config['PUBLISH_SUPPORTED'] = True
+# we could also have passed in just PUBLISH_SUPPORTED, but this is probably a
+# nice pattern for your app:
+hub = Hub(SQLite3HubStorage('server_data.sqlite3'), celery, **app.config)
+app.register_blueprint(hub.build_blueprint(url_prefix='/hub'))
 
 
-def validate_topic_existence(callback_url, topic_url):
-    if topic_url.startswith('https://websub.rocks/'):
-        return  # pass validation
-    if topic_url != url_for('topic', _external=True):
-        return "Topic not allowed"
+def validate_topic_existence(callback_url, topic_url, *args):
+    with app.app_context():
+        if topic_url.startswith('https://websub.rocks/'):
+            return  # pass validation
+        if topic_url != url_for('topic', _external=True):
+            return "Topic not allowed"
 
 
 hub.register_validator(validate_topic_existence)

@@ -1,8 +1,6 @@
-from flask import current_app
-
 import abc
 
-from ..utils import SQLite3StorageMixin
+from ..utils import SQLite3StorageMixin, warn
 
 RACE_CONDITION = "WerkzeugCacheTempSubscriberStorage race condition."
 
@@ -93,7 +91,7 @@ class WerkzeugCacheTempSubscriberStorage(AbstractTempSubscriberStorage):
         delete_success = self.cache.delete(callback_id)
         if result:
             if not delete_success:
-                current_app.logger.warning(RACE_CONDITION)
+                warn(RACE_CONDITION)
             return result
         raise KeyError(callback_id)
 

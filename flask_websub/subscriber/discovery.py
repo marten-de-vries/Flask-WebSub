@@ -5,12 +5,14 @@ import contextlib
 import html.parser
 
 
-def discover(url):
+def discover(url, timeout=None):
     """Discover the hub url and topic url of a given url. Firstly, by inspecting
     the page's headers, secondarily by inspecting the content for link tags.
 
+    timeout determines how long to wait for the url to load. It defaults to 3.
+
     """
-    resp = get_content(url)
+    resp = get_content({'REQUEST_TIMEOUT': timeout}, url)
 
     parser = LinkParser()
     parser.hub_url = (resp.links.get('hub') or {}).get('url')

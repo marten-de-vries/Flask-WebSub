@@ -12,6 +12,8 @@ from .events import EventMixin
 from .storage import WerkzeugCacheTempSubscriberStorage, \
                      SQLite3TempSubscriberStorage, SQLite3SubscriberStorage
 
+from ..utils import warn
+
 __all__ = ('Subscriber', 'discover', 'WerkzeugCacheTempSubscriberStorage',
            'SQLite3TempSubscriberStorage', 'SQLite3SubscriberStorage')
 
@@ -25,12 +27,14 @@ RENEW_FAILURE = "Could not renew subscription (%s, %s)"
 
 class Subscriber(EventMixin):
     """A subscriber takes the following constructor arguments:
+
     - an AbstractSubscriberStorage instance for long-term data storage
     - an AbstractTempSubscriberStorage instance for short-term data storage
-    - a flask app, on which a blueprint with the required callbacks is
-      registered
-    - url_prefix (keyword argument), to change the place where said blueprint
-      is registered.
+    - configuration values (optional); they are (with their default values):
+        - REQUEST_TIMEOUT=3: Specifies how long to wait before considering a
+          request to have failed.
+        - MAX_BODY_SIZE=1024 * 1024: the maximum body size of a notification,
+          larger requests will be rejected. The default is 1MiB.
 
     It exposes the following methods:
 
@@ -39,6 +43,9 @@ class Subscriber(EventMixin):
     - renew
     - renew_close_to_expiration
     - cleanup
+
+    It also exposes a property: blueprint, which you can use as an argument to
+    app.register_blueprint().
 
     The subscriber of course also needs to be able to notify you when a
     notification from the hub is sent. You can register one or more functions
@@ -55,13 +62,22 @@ class Subscriber(EventMixin):
       mode) as arguments. Mode is a string: either 'publish' or 'unpublish'.
 
     """
-    def __init__(self, storage, temp_storage, app, **opts):
+    def __init__(self, storage, temp_storage, **config):
         super().__init__()
 
         self.storage = storage
         self.temp_storage = temp_storage
-        self.blueprint_name, blueprint = build_blueprint(self, **opts)
-        app.register_blueprint(blueprint)
+        self.config = config
+
+    def build_blueprint(self, url_prefix=''):
+        """Build a blueprint that contains the endpoints for callback URLs of
+        the current subscriber. Only call this once per instance. Arguments:
+
+        - url_prefix; this allows you to prefix the callback URLs in your app.
+
+        """
+        self.blueprint_name, self.blueprint = build_blueprint(self, url_prefix)
+        return self.blueprint
 
     def subscribe(self, **subscription_request):
         """Subscribe to a certain topic. All arguments are keyword arguments.
@@ -115,7 +131,7 @@ class Subscriber(EventMixin):
         request['timeout'] = 10 * 60
         self.temp_storage[callback_id] = request
         try:
-            response = safe_post_request(request['hub_url'], data=args)
+            response = self.safe_post_request(request['hub_url'], data=args)
             assert response.status_code == 202
         except requests.exceptions.RequestException as e:
             raise SubscriberError(INVALID_HUB_URL) from e
@@ -124,6 +140,13 @@ class Subscriber(EventMixin):
                                                           response.content))
             raise err from old_err
         return callback_id
+
+    def safe_post_request(self, url, **opts):
+        if not is_secure(url):
+            https_url = 'https' + url[len('http'):]
+            with contextlib.suppress(requests.exceptions.RequestException):
+                return request_url(self.config, 'POST', https_url, **opts)
+        return request_url(self.config, 'POST', url, **opts)
 
     def unsubscribe(self, callback_id):
         """Ask the hub to cancel the subscription for callback_id, then delete
@@ -167,10 +190,8 @@ class Subscriber(EventMixin):
             try:
                 self.subscribe_impl(**subscription)
             except SubscriberError as e:
-                current_app.logger.warning(RENEW_FAILURE,
-                                           subscription['topic_url'],
-                                           subscription['callback_id'],
-                                           exc_info=e)
+                warn(RENEW_FAILURE % (subscription['topic_url'],
+                                      subscription['callback_id']), e)
 
     def cleanup(self):
         self.temp_storage.cleanup()
@@ -178,14 +199,6 @@ class Subscriber(EventMixin):
 
 def is_secure(url):
     return url.startswith('https://')
-
-
-def safe_post_request(url, **opts):
-    if not is_secure(url):
-        https_url = 'https' + url[len('http'):]
-        with contextlib.suppress(requests.exceptions.RequestException):
-            return request_url('POST', https_url, **opts)
-    return request_url('POST', url, **opts)
 
 
 def add_secret_to_args(args, request, hub_is_secure):

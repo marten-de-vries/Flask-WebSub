@@ -10,7 +10,7 @@ A_MONTH = A_DAY * 31
 first_time = True
 
 
-def build_blueprint(hub, url_prefix=''):
+def build_blueprint(hub, url_prefix):
     global first_time
     if first_time:
         name = 'websub_hub'
@@ -36,8 +36,10 @@ def build_blueprint(hub, url_prefix=''):
             abort(400, "Secret is too big (should be < 200 bytes)")
 
         publish_supported = current_app.config.get('PUBLISH_SUPPORTED', False)
+        endpoint_hook_data = hub.endpoint_hook()
         if mode == 'subscribe':
-            hub.subscribe.delay(callback_url, topic_url, lease_seconds, secret)
+            hub.subscribe.delay(callback_url, topic_url, lease_seconds, secret,
+                                endpoint_hook_data)
         elif mode == 'unsubscribe':
             hub.unsubscribe.delay(callback_url, topic_url, lease_seconds)
         elif mode == 'publish' and publish_supported:

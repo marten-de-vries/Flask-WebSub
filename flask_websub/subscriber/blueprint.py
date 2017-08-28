@@ -1,4 +1,4 @@
-from flask import abort, request, Blueprint, current_app
+from flask import abort, request, Blueprint
 
 import hmac
 
@@ -7,7 +7,7 @@ from ..utils import warn, parse_lease_seconds, calculate_hmac
 NOT_FOUND = "Could not found subscription with callback id '%s'"
 
 
-def build_blueprint(subscriber, url_prefix=''):
+def build_blueprint(subscriber, url_prefix):
     name = 'websub_callbacks' + url_prefix.replace('/', '_')
     callbacks = Blueprint(name, __name__, url_prefix=url_prefix)
 
@@ -62,7 +62,7 @@ def build_blueprint(subscriber, url_prefix=''):
         except (KeyError, AssertionError):
             abort(404)
         # 1 MiB by default
-        max_body_size = current_app.config.get('MAX_BODY_SIZE', 1024 * 1024)
+        max_body_size = subscriber.config.get('MAX_BODY_SIZE', 1024 * 1024)
         if request.content_length > max_body_size:
             abort(400, "Body too large")
         body = request.get_data()

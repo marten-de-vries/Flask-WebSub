@@ -10,8 +10,8 @@ app = Flask(__name__)
 app.config['SERVER_NAME'] = 'home.marten-de-vries.nl:8081'
 
 subscriber = Subscriber(SQLite3SubscriberStorage('client_data.sqlite3'),
-                        SQLite3TempSubscriberStorage('client_data.sqlite3'),
-                        app, url_prefix='/callbacks')
+                        SQLite3TempSubscriberStorage('client_data.sqlite3'))
+app.register_blueprint(subscriber.build_blueprint(url_prefix='/callbacks'))
 
 
 @subscriber.add_success_handler

@@ -1,10 +1,10 @@
-from flask import abort, current_app
-from celery import Celery
+from flask import abort
 import requests
 
 import contextlib
 import hashlib
 import hmac
+import logging
 import sqlite3
 import uuid
 
@@ -13,25 +13,6 @@ RACE_CONDITION = ("Race condition. Subscription '%s' disappeared during this "
                   "request")
 A_MINUTE = 60
 A_DAY = A_MINUTE * 60 * 24
-
-
-# Source: http://flask.pocoo.org/docs/0.12/patterns/celery/
-def make_celery(app):
-    celery = Celery(app.import_name,
-                    backend=app.config.get('CELERY_RESULT_BACKEND'),
-                    broker=app.config['CELERY_BROKER_URL'],)
-    celery.conf.update(app.config)
-    TaskBase = celery.Task
-
-    class ContextTask(TaskBase):
-        abstract = True
-
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return TaskBase.__call__(self, *args, **kwargs)
-
-    celery.Task = ContextTask
-    return celery
 
 
 def parse_lease_seconds(value):
@@ -48,15 +29,18 @@ def uuid4():
     return str(uuid.uuid4())
 
 
-def request_url(*args, **kwargs):
+def request_url(config, *args, **kwargs):
     # 3 seconds seems reasonable even for slow/far away servers, as websub
     # requests should not do elaborate processing anyway.
-    kwargs['timeout'] = current_app.config.get('REQUEST_TIMEOUT', 3)
+    kwargs['timeout'] = config.get('REQUEST_TIMEOUT', 3)
     return requests.request(*args, **kwargs)
 
 
+logger = logging.getLogger('flask_websub')
+
+
 def warn(msg, exc_info):
-    current_app.logger.warning(msg, exc_info=exc_info)
+    logger.warning(msg, exc_info=exc_info)
 
 
 def calculate_hmac(algorithm, secret, data):
@@ -64,8 +48,8 @@ def calculate_hmac(algorithm, secret, data):
     return hmac.new(secret.encode('UTF-8'), data, hash).hexdigest()
 
 
-def get_content(topic_url):
-    updated_content = request_url('GET', topic_url, stream=True)
+def get_content(config, topic_url):
+    updated_content = request_url(config, 'GET', topic_url, stream=True)
     updated_content.raise_for_status()
     return updated_content
 
@@ -95,6 +79,6 @@ class SQLite3StorageMixin:
     def conn(self):
         connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
-        # allow writing and reading at the same time:
+        # allow writing and reading simultaneously:
         connection.execute('PRAGMA journal_mode=wal')
         return connection
