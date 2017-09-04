@@ -159,6 +159,9 @@ class AbstractSubscriberStorage(metaclass=abc.ABCMeta):
         """Return an iterator of subscriptions that are near (or already past)
         their expiration time. margin_in_seconds specifies what 'near' is.
 
+        Note that the key 'callback_id' needs to be included in the resulting
+        object as well!
+
         """
 
 
