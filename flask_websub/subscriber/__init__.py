@@ -91,6 +91,9 @@ class Subscriber(EventMixin):
         - lease_seconds (optional): the lease length you request from the
           hub. Note that the hub may override it. If it's not given, the hub
           gets to decide by itself.
+        - requests_opts (optional): allows you to pass in extra options for the
+          initial subscribe requests. Handy when a hub e.g. demands
+          authentication. It's against the spec, but these things happen.
 
         Note that, while possible, it is not always necessary to find the
         topic_url and hub_url yourself. If you have a WebSub-supporting URL,
@@ -129,9 +132,11 @@ class Subscriber(EventMixin):
         # ten minutes should be enough time for the hub to answer. If the hub
         # didn't answer for so long, we can forget about the request.
         request['timeout'] = 10 * 60
+        requests_opts = request.pop('requests_opts', {})
         self.temp_storage[callback_id] = request
         try:
-            response = self.safe_post_request(request['hub_url'], data=args)
+            response = self.safe_post_request(request['hub_url'], data=args,
+                                              **requests_opts)
             assert response.status_code == 202
         except requests.exceptions.RequestException as e:
             raise SubscriberError(INVALID_HUB_URL) from e
