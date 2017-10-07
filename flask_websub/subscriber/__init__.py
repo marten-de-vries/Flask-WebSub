@@ -100,7 +100,9 @@ class Subscriber(EventMixin):
         you can find them using the discover function. That makes calling this
         function as simple as:
 
-        subscriber.subscribe(**discover('http://some_websub_supporting.url'))
+        .. code:: python
+
+          subscriber.subscribe(**discover('http://some_websub_supporting.url'))
 
         This function returns a callback_id. This value is an implementation
         detail, so you should not ascribe any meaning to it other than it being

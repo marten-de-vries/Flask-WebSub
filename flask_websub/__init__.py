@@ -7,3 +7,5 @@ This package consists of three (mostly independent) different components:
 - flask_websub.subscriber
 
 """
+
+__version__ = '0.2.1'

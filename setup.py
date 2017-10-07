@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
+from flask_websub import __version__
 
 with open('README.md', encoding='UTF-8') as f:
     description = f.read()
 
 setup(
     name='Flask-WebSub',
-    version='0.2',
+    version=__version__,
     url='https://github.com/marten-de-vries/Flask-WebSub',
     license='ISC',
     author='Marten de Vries',
