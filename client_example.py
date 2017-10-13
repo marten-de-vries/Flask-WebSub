@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# client_example.py
 
 from flask import Flask, url_for
 from flask_websub.subscriber import Subscriber, SQLite3TempSubscriberStorage, \
@@ -7,7 +8,7 @@ from flask_websub.subscriber import Subscriber, SQLite3TempSubscriberStorage, \
 import sys
 
 app = Flask(__name__)
-app.config['SERVER_NAME'] = 'home.marten-de-vries.nl:8081'
+app.config['SERVER_NAME'] = 'localhost:8081'
 
 subscriber = Subscriber(SQLite3SubscriberStorage('client_data.sqlite3'),
                         SQLite3TempSubscriberStorage('client_data.sqlite3'))
@@ -30,14 +31,14 @@ def on_topic_change(topic_url, callback_id, body):
 
 
 if len(sys.argv) == 2:
-    url = sys.argv[1]
+    published_url = sys.argv[1]
 else:
-    url = 'http://home.marten-de-vries.nl:8080/'
+    published_url = 'http://localhost:8080/'
 
 
 @app.route('/subscribe')
 def subscribe_route():
-    id = subscriber.subscribe(**discover(url))
+    id = subscriber.subscribe(**discover(published_url))
     return 'Subscribed. ' + url_for('renew_route', id=id, _external=True)
 
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# server_example.py
 
 from flask import Flask, render_template, url_for
 # The publisher and hub are combined in the same process because it's easier.
@@ -9,7 +10,7 @@ from celery import Celery
 
 # app & celery
 app = Flask(__name__)
-app.config['SERVER_NAME'] = 'home.marten-de-vries.nl:8080'
+app.config['SERVER_NAME'] = 'localhost:8080'
 celery = Celery('sever_example', broker='redis://localhost:6379')
 
 # initialise publisher
