@@ -85,10 +85,26 @@ class Hub:
                                  max_retries=max_attempts)
         self.make_request_retrying = make_req
 
-        # user facing tasks:
-        self.send_change_notification = task_with_hub(send_change_notification)
-        self.send_change_notification.__doc__ = """
-        Allows you to notify subscribers of a change to a `topic_url`. This
+        # user facing tasks
+
+        # wrapped by send_change_notification:
+        self.send_change = task_with_hub(send_change_notification)
+
+        # wrapped by cleanup_expired_subscriptions
+        @task_with_hub
+        def cleanup(hub):
+            self.storage.cleanup_expired_subscriptions()
+        self.cleanup = cleanup
+
+        # wrapped by schedule_cleanup
+        def schedule(every_x_seconds=A_DAY):
+            celery.add_periodic_task(every_x_seconds,
+                                     self.cleanup_expired_subscriptions.s())
+        self.schedule = schedule
+
+    @property
+    def send_change_notification(self):
+        """Allows you to notify subscribers of a change to a `topic_url`. This
         is a celery task, so you probably will actually want to call
         hub.send_change_notification.delay(topic_url, updated_content). The
         last argument is optional. If passed in, it should be an object with
@@ -96,28 +112,27 @@ class Hub:
         If left out, the updated content will be fetched from the topic url
         directly.
 
-        """.lstrip()
+        """
+        return self.send_change
 
-        @task_with_hub
-        def cleanup(hub):
-            """Removes any expired subscriptions from the backing data store.
-            It takes no arguments, and is a celery task.
+    @property
+    def cleanup_expired_subscriptions(self):
+        """Removes any expired subscriptions from the backing data store.
+        It takes no arguments, and is a celery task.
 
-            """
-            self.storage.cleanup_expired_subscriptions()
-        self.cleanup_expired_subscriptions = cleanup
+        """
+        return self.cleanup
 
-        def schedule_cleanup(every_x_seconds=A_DAY):
-            """schedule_cleanup(every_x_seconds=A_DAY): schedules the celery
-            task `cleanup_expired_subscriptions` as a recurring event, the
-            frequency of which is determined by its parameter. This is not a
-            celery task itself (as the cleanup is only scheduled), and is a
-            convenience function.
+    @property
+    def schedule_cleanup(self):
+        """schedule_cleanup(every_x_seconds=A_DAY): schedules the celery
+        task `cleanup_expired_subscriptions` as a recurring event, the
+        frequency of which is determined by its parameter. This is not a
+        celery task itself (as the cleanup is only scheduled), and is a
+        convenience function.
 
-            """
-            celery.add_periodic_task(every_x_seconds,
-                                     self.cleanup_expired_subscriptions.s())
-        self.schedule_cleanup = schedule_cleanup
+        """
+        return self.schedule
 
     def register_validator(self, f):
         """Register `f` as a validation function for subscription requests. It
