@@ -11,7 +11,7 @@ from celery import Celery
 # app & celery
 app = Flask(__name__)
 app.config['SERVER_NAME'] = 'localhost:8080'
-celery = Celery('sever_example', broker='redis://localhost:6379')
+celery = Celery('server_example', broker='redis://localhost:6379')
 
 # initialise publisher
 init_publisher(app)

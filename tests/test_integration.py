@@ -257,3 +257,9 @@ def test_subscriber_manually(subscriber):
 
     resp3 = requests.post('http://localhost:5002/callbacks/unexisting')
     assert resp3.status_code == 404
+
+
+    resp4 = requests.get('http://localhost:5002/callbacks/unexisting', {
+        'hub.mode': 'denied',
+    })
+    assert resp4.status_code == 404

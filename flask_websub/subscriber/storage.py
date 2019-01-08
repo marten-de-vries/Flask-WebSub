@@ -36,6 +36,14 @@ class SQLite3SubscriberStorageBase(SQLite3StorageMixin):
 
         super().__init__(path)
 
+    def pop(self, callback_id):
+        with self.conn as connection:
+            cursor = connection.execute(self.GETITEM_SQL, (callback_id,))
+            result = cursor.fetchone()
+            connection.execute(self.DELITEM_SQL, (callback_id,))
+            if result:
+                return dict(result)
+            raise KeyError(callback_id)
 
 # temp storage
 
@@ -103,15 +111,6 @@ class SQLite3TempSubscriberStorage(AbstractTempSubscriberStorage,
     delete from subscriber_temp where expiration_time > strftime('%s', 'now')
     """
 
-    def pop(self, callback_id):
-        with self.conn as connection:
-            cursor = connection.execute(self.GETITEM_SQL, (callback_id,))
-            result = cursor.fetchone()
-            connection.execute(self.DELITEM_SQL, (callback_id,))
-            if result:
-                return dict(result)
-            raise KeyError(callback_id)
-
     def __setitem__(self, callback_id, request):
         with self.conn as connection:
             connection.execute(self.SETITEM_SQL, (callback_id,
@@ -125,6 +124,8 @@ class SQLite3TempSubscriberStorage(AbstractTempSubscriberStorage,
     def cleanup(self):
         with self.conn as connection:
             connection.execute(self.CLEANUP_SQL)
+
+    pop = SQLite3SubscriberStorageBase.pop
 
 
 class AbstractSubscriberStorage(metaclass=abc.ABCMeta):
@@ -164,6 +165,10 @@ class AbstractSubscriberStorage(metaclass=abc.ABCMeta):
 
         """
 
+    @abc.abstractmethod
+    def pop(self, callback_id):
+        """Atomic combination of __getitem__ and __delitem__."""
+
 
 class SQLite3SubscriberStorage(AbstractSubscriberStorage,
                                SQLite3SubscriberStorageBase):
@@ -197,3 +202,5 @@ class SQLite3SubscriberStorage(AbstractSubscriberStorage,
     def close_to_expiration(self, margin_in_seconds):
         args = (margin_in_seconds,)
         return iter(self.conn.execute(self.CLOSE_TO_EXPIRATION_SQL, args))
+
+    pop = SQLite3SubscriberStorageBase.pop

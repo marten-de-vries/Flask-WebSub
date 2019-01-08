@@ -1,5 +1,6 @@
 from flask import abort, request, Blueprint
 
+import contextlib
 import hmac
 
 from ..utils import warn, parse_lease_seconds, calculate_hmac
@@ -14,19 +15,20 @@ def build_blueprint(subscriber, url_prefix):
     @callbacks.route('/<callback_id>', methods=['GET'])
     def subscription_confirmation(callback_id):
         mode = get_query_arg('hub.mode')
-        try:
-            subscription_request = subscriber.temp_storage.pop(callback_id)
-        except KeyError as e:
-            warn(NOT_FOUND % callback_id, e)
-            abort(404)
         if mode == 'denied':
-            return subscription_denied(callback_id, subscription_request)
+            return subscription_denied(callback_id)
         elif mode in ['subscribe', 'unsubscribe']:
-            return confirm_subscription(callback_id, subscription_request)
+            return confirm_subscription(callback_id)
         else:
             abort(400, "Invalid mode")
 
-    def subscription_denied(callback_id, subscription_request):
+    def subscription_denied(callback_id):
+        try:
+            subscription_request = subscriber.temp_storage.pop(callback_id)
+        except KeyError:
+            with warn_and_abort_on_error(callback_id):
+                subscription_request = subscriber.storage.pop(callback_id)
+
         # 5.2 Subscription Validation
 
         # TODO: support Location header? It's a MAY, but a nice feature. Maybe
@@ -37,7 +39,10 @@ def build_blueprint(subscriber, url_prefix):
                             reason)
         return "'denied' acknowledged\n"
 
-    def confirm_subscription(callback_id, subscription_request):
+    def confirm_subscription(callback_id):
+        with warn_and_abort_on_error(callback_id):
+            subscription_request = subscriber.temp_storage.pop(callback_id)
+
         mode = get_query_arg('hub.mode')
         topic_url = get_query_arg('hub.topic')
         if mode != subscription_request['mode']:
@@ -97,3 +102,11 @@ def body_is_valid(subscription, body):
         if hmac.compare_digest(signature, expected_signature):
             return True
     return False
+
+@contextlib.contextmanager
+def warn_and_abort_on_error(callback_id):
+    try:
+        yield
+    except KeyError as e:
+        warn(NOT_FOUND % callback_id, e)
+        abort(404)
