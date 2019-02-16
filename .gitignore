@@ -5,3 +5,5 @@ venv
 dist
 *.egg-info
 _build
+.coverage
+htmlcov
