@@ -2,6 +2,7 @@ from flask import url_for, current_app
 import requests
 
 import contextlib
+import logging
 
 from ..utils import uuid4, request_url, secret_too_big, A_DAY
 from ..errors import SubscriberError
@@ -151,8 +152,9 @@ class Subscriber(EventMixin):
     def safe_post_request(self, url, **opts):
         if not is_secure(url):
             https_url = 'https' + url[len('http'):]
-            with contextlib.suppress(requests.exceptions.RequestException):
-                return request_url(self.config, 'POST', https_url, **opts)
+            with suppress_logging():
+                with contextlib.suppress(requests.exceptions.RequestException):
+                    return request_url(self.config, 'POST', https_url, **opts)
         return request_url(self.config, 'POST', url, **opts)
 
     def unsubscribe(self, callback_id):
@@ -202,6 +204,21 @@ class Subscriber(EventMixin):
 
     def cleanup(self):
         self.temp_storage.cleanup()
+
+
+@contextlib.contextmanager
+def suppress_logging():
+    # Mitigates https://github.com/marten-de-vries/Flask-WebSub/issues/1
+    logger = logging.getLogger('werkzeug')
+
+    def filter(record):
+        return not (record.levelname == 'ERROR' and
+                    '_internal.py' in record.pathname and
+                    'code 400, message Bad' in record.msg)
+    logger.addFilter(filter)
+    yield
+    logger.removeFilter(filter)
+
 
 
 def is_secure(url):
