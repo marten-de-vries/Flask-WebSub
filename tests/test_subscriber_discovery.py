@@ -3,7 +3,6 @@ from flask_websub.errors import DiscoveryError
 from .utils import serve_app
 import pytest
 from flask import Flask, make_response
-import requests
 
 # app
 HTML = '''
@@ -15,7 +14,8 @@ HTML = '''
   </head>
 </html>'''
 
-@pytest.fixture(scope='session', autouse=True)
+
+@pytest.fixture(scope='module', autouse=True)
 def flask_server():
     app = Flask(__name__)
 
@@ -33,7 +33,9 @@ def flask_server():
     def tags():
         return HTML
 
-    yield from serve_app(app, 5000)
+    with serve_app(app, port=5000):
+        yield
+
 
 def test_basic():
     assert discover('http://localhost:5000/basic') == {
@@ -41,9 +43,11 @@ def test_basic():
         'topic_url': '/resource'
     }
 
+
 def test_blank():
     with pytest.raises(DiscoveryError):
         discover('http://localhost:5000/blank')
+
 
 def test_tags():
     assert discover('http://localhost:5000/tags') == {

@@ -59,7 +59,7 @@ def build_blueprint(subscriber, url_prefix):
     def callback(callback_id):
         try:
             subscription = subscriber.storage[callback_id]
-        except (KeyError, AssertionError):
+        except KeyError:
             abort(404)
         # 1 MiB by default
         max_body_size = subscriber.config.get('MAX_BODY_SIZE', 1024 * 1024)

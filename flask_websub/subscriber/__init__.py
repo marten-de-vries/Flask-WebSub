@@ -60,7 +60,8 @@ class Subscriber(EventMixin):
     - add_error_handler; a handler should expect (topic_url, callback_url,
       reason) as arguments.
     - add_success_handler; a handler should expect (topic_url, callback_url,
-      mode) as arguments. Mode is a string: either 'publish' or 'unpublish'.
+      mode) as arguments. Mode is a string: either 'subscribe' or
+      'unsubscribe'.
 
     """
     def __init__(self, storage, temp_storage, **config):
@@ -169,7 +170,7 @@ class Subscriber(EventMixin):
     def get_active_subscription(self, callback_id):
         try:
             subscription = self.storage[callback_id]
-        except KeyError as e:
+        except KeyError:
             raise SubscriberError(NOT_FOUND + callback_id)
         else:
             return subscription
@@ -218,7 +219,6 @@ def suppress_logging():
     logger.addFilter(filter)
     yield
     logger.removeFilter(filter)
-
 
 
 def is_secure(url):

@@ -108,9 +108,9 @@ class Hub:
         is a celery task, so you probably will actually want to call
         hub.send_change_notification.delay(topic_url, updated_content). The
         last argument is optional. If passed in, it should be an object with
-        two properties: `headers` (dict-like), and `content` (a byte string).
-        If left out, the updated content will be fetched from the topic url
-        directly.
+        two properties: `headers` (dict-like), and `content` (a base64-encoded
+        string). If left out, the updated content will be fetched from the
+        topic url directly.
 
         """
         return self.send_change

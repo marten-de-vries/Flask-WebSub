@@ -1,8 +1,11 @@
 import threading
+import contextlib
 
 from flask import request, url_for
 import requests
 
+
+@contextlib.contextmanager
 def serve_app(app, port):
     app.config['SERVER_NAME'] = 'localhost:' + str(port)
     @app.route('/ping')

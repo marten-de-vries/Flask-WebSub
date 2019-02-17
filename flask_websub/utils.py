@@ -1,7 +1,6 @@
 from flask import abort
 import requests
 
-import contextlib
 import hashlib
 import hmac
 import logging
@@ -9,8 +8,6 @@ import sqlite3
 import uuid
 
 INVALID_LEASE = "Invalid hub.lease_seconds (should be a positive integer)"
-RACE_CONDITION = ("Race condition. Subscription '%s' disappeared during this "
-                  "request")
 A_MINUTE = 60
 A_DAY = A_MINUTE * 60 * 24
 
@@ -52,14 +49,6 @@ def get_content(config, topic_url):
     updated_content = request_url(config, 'GET', topic_url, stream=True)
     updated_content.raise_for_status()
     return updated_content
-
-
-@contextlib.contextmanager
-def logging_race_condition(*key):
-    try:
-        yield
-    except KeyError as e:
-        warn(RACE_CONDITION % key, e)
 
 
 def secret_too_big(secret):
