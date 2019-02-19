@@ -45,6 +45,7 @@ class SQLite3SubscriberStorageBase(SQLite3StorageMixin):
                 return dict(result)
             raise KeyError(callback_id)
 
+
 # temp storage
 
 class AbstractTempSubscriberStorage(metaclass=abc.ABCMeta):

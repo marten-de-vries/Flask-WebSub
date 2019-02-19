@@ -20,6 +20,14 @@ setup(
     extras_require={
         'celery': ['celery'],
         'redis': ['redis'],
+        'dev': [
+            'flake8',
+            'pytest',
+            'pytest-cov',
+            'pytest-runner',
+            'Sphinx',
+            'Sphinx-PyPI-upload',
+        ],
     },
     classifiers=[
         'Environment :: Web Environment',

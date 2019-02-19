@@ -1,9 +1,11 @@
 __pycache__
-server_data.sqlite3
-client_data.sqlite3
-venv
-dist
-*.egg-info
 _build
 .coverage
+*.egg-info
+client_data.sqlite3
+coverage.xml
+dist
 htmlcov
+junit
+server_data.sqlite3
+venv

@@ -103,6 +103,7 @@ def body_is_valid(subscription, body):
             return True
     return False
 
+
 @contextlib.contextmanager
 def warn_and_abort_on_error(callback_id):
     try:
