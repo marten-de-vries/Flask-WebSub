@@ -1,6 +1,10 @@
 Flask-WebSub
 -------------
 
+[![Build Status](https://dev.azure.com/marten-de-vries/Flask-WebSub/_apis/build/status/marten-de-vries.Flask-WebSub?branchName=master)](https://dev.azure.com/marten-de-vries/Flask-WebSub/_build/latest?definitionId=1&branchName=master)
+[![Documentation](https://readthedocs.org/projects/flask-websub/badge/?version=latest)](https://flask-websub.readthedocs.io/)
+[![PyPI version](https://badge.fury.io/py/Flask-WebSub.svg)](https://pypi.org/project/Flask-WebSub/)
+
 An implementation of a WebSub hub, publisher and subscriber as a Flask
 extension. The implementation is meant to be used as a library that can be
 integrated in a larger application.

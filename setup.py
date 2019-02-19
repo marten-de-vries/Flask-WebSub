@@ -18,7 +18,7 @@ setup(
     platforms='any',
     install_requires=['Flask', 'requests'],
     extras_require={
-        'celery': ['celery'],
+        'celery': ['celery>=4.3.0rc1'],
         'redis': ['redis'],
         'dev': [
             'flake8',
