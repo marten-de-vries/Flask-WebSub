@@ -37,7 +37,7 @@ class SQLite3SubscriberStorageBase(SQLite3StorageMixin):
         super().__init__(path)
 
     def pop(self, callback_id):
-        with self.conn as connection:
+        with self.connection() as connection:
             cursor = connection.execute(self.GETITEM_SQL, (callback_id,))
             result = cursor.fetchone()
             connection.execute(self.DELITEM_SQL, (callback_id,))
@@ -113,7 +113,7 @@ class SQLite3TempSubscriberStorage(AbstractTempSubscriberStorage,
     """
 
     def __setitem__(self, callback_id, request):
-        with self.conn as connection:
+        with self.connection() as connection:
             connection.execute(self.SETITEM_SQL, (callback_id,
                                                   request['mode'],
                                                   request['topic_url'],
@@ -123,7 +123,7 @@ class SQLite3TempSubscriberStorage(AbstractTempSubscriberStorage,
                                                   request['timeout']))
 
     def cleanup(self):
-        with self.conn as connection:
+        with self.connection() as connection:
             connection.execute(self.CLEANUP_SQL)
 
     pop = SQLite3SubscriberStorageBase.pop
@@ -180,18 +180,19 @@ class SQLite3SubscriberStorage(AbstractSubscriberStorage,
     """
 
     def __getitem__(self, callback_id):
-        cursor = self.conn.execute(self.GETITEM_SQL, (callback_id,))
-        result = cursor.fetchone()
-        if result:
-            return dict(result)
-        raise KeyError(callback_id)
+        with self.connection() as connection:
+            cursor = connection.execute(self.GETITEM_SQL, (callback_id,))
+            result = cursor.fetchone()
+            if result:
+                return dict(result)
+            raise KeyError(callback_id)
 
     def __delitem__(self, callback_id):
-        with self.conn as connection:
+        with self.connection() as connection:
             connection.execute(self.DELITEM_SQL, (callback_id,))
 
     def __setitem__(self, callback_id, subscription):
-        with self.conn as conn:
+        with self.connection() as conn:
             conn.execute(self.SETITEM_SQL, (callback_id,
                                             subscription['mode'],
                                             subscription['topic_url'],
@@ -202,6 +203,7 @@ class SQLite3SubscriberStorage(AbstractSubscriberStorage,
 
     def close_to_expiration(self, margin_in_seconds):
         args = (margin_in_seconds,)
-        return iter(self.conn.execute(self.CLOSE_TO_EXPIRATION_SQL, args))
+        with self.connection() as conn:
+            yield from iter(conn.execute(self.CLOSE_TO_EXPIRATION_SQL, args))
 
     pop = SQLite3SubscriberStorageBase.pop

@@ -1,6 +1,7 @@
 from flask import abort
 import requests
 
+import contextlib
 import hashlib
 import hmac
 import logging
@@ -62,12 +63,17 @@ class SQLite3StorageMixin:
         """Path should be where you want to save the sqlite3 database."""
 
         self.path = path
-        self.conn.execute(self.TABLE_SETUP_SQL)
+        with self.connection() as connection:
+            connection.execute(self.TABLE_SETUP_SQL)
 
-    @property
-    def conn(self):
+    @contextlib.contextmanager
+    def connection(self):
         connection = sqlite3.connect(self.path)
-        connection.row_factory = sqlite3.Row
-        # allow writing and reading simultaneously:
-        connection.execute('PRAGMA journal_mode=wal')
-        return connection
+        try:
+            connection.row_factory = sqlite3.Row
+            # allow writing and reading simultaneously:
+            with connection:
+                connection.execute('PRAGMA journal_mode=wal')
+                yield connection
+        finally:
+            connection.close()

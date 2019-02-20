@@ -76,18 +76,19 @@ class SQLite3HubStorage(AbstractHubStorage, SQLite3StorageMixin):
     """
 
     def __delitem__(self, key):
-        with self.conn as connection:
+        with self.connection() as connection:
             connection.execute(self.DELITEM_SQL, key)
 
     def __setitem__(self, key, value):
-        with self.conn as connection:
+        with self.connection() as connection:
             connection.execute(self.SETITEM_SQL, key + (value['lease_seconds'],
                                                         value['secret'],))
 
     def get_callbacks(self, topic_url):
-        cursor = self.conn.execute(self.GET_CALLBACKS_SQL, (topic_url,))
-        return iter(cursor)
+        with self.connection() as connection:
+            cursor = connection.execute(self.GET_CALLBACKS_SQL, (topic_url,))
+            yield from iter(cursor)
 
     def cleanup_expired_subscriptions(self):
-        with self.conn as connection:
+        with self.connection() as connection:
             connection.execute(self.CLEANUP_EXPIRED_SUBSCRIPTIONS_SQL)
