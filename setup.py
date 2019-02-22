@@ -22,6 +22,7 @@ setup(
         'redis': ['redis'],
         'dev': [
             'flake8',
+            'pyOpenSSL',
             'pytest',
             'pytest-cov',
             'pytest-runner',

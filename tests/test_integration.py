@@ -15,18 +15,43 @@ from flask_websub.hub import Hub, SQLite3HubStorage
 from .utils import serve_app
 
 
-@pytest.fixture
-def hub(celery_session_app, celery_session_worker):
+def run_hub_app(celery, worker, https):
     app = Flask(__name__)
     app.config['PUBLISH_SUPPORTED'] = True
 
-    hub = Hub(SQLite3HubStorage('hub.db'), celery_session_app, **app.config)
-    celery_session_worker.reload()
+    hub = Hub(SQLite3HubStorage('hub.db'), celery, **app.config)
+    worker.reload()
 
     app.register_blueprint(hub.build_blueprint(url_prefix='/hub'))
-    with serve_app(app, port=5001):
+    with serve_app(app, port=5001, https=https):
         yield hub
+
     os.remove('hub.db')
+
+
+@pytest.fixture
+def https_hub(celery_session_app, celery_session_worker):
+    # monkey-patch requests
+    def new(*args, **kwargs):
+        kwargs['verify'] = False
+        return old(*args, **kwargs)
+    old, requests.request = requests.request, new
+
+    # suppress warning
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    yield from run_hub_app(celery_session_app, celery_session_worker,
+                           https=True)
+
+    # de-monkey patch
+    requests.request = old
+
+
+@pytest.fixture
+def hub(celery_session_app, celery_session_worker):
+    yield from run_hub_app(celery_session_app, celery_session_worker,
+                           https=False)
 
 
 def subscriber_app(subscriber):
@@ -89,13 +114,13 @@ def test_unexisting_werkzeug(werkzeug_subscriber):
     assert resp.status_code == 404
 
 
-def test_sub_notify_unsub(hub, subscriber):
+def test_sub_notify_unsub(https_hub, subscriber):
     # subscribe
     on_success = Mock()
     subscriber.add_success_handler(on_success)
     topic = 'http://example.com'
     id = subscriber.subscribe(topic_url=topic,
-                              hub_url='http://localhost:5001/hub')
+                              hub_url='https://localhost:5001/hub')
     while not on_success.called:
         pass  # wait for the worker to finish
     on_success.assert_called_with(topic, id, 'subscribe')
@@ -108,11 +133,11 @@ def test_sub_notify_unsub(hub, subscriber):
         'headers': {
             'Link': ', '.join([
                 '<http://example.com>; rel="self"',
-                '<http://localhost:5001/hub>; rel="hub"',
+                '<https://localhost:5001/hub>; rel="hub"',
             ])
         },
     }
-    hub.send_change_notification.delay(topic, content).get()
+    https_hub.send_change_notification.delay(topic, content).get()
     while not on_topic_change.called:  # pragma: no cover
         pass
     on_topic_change.assert_called_with(topic, id, b'Hello World!')
