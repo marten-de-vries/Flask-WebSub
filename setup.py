@@ -13,12 +13,13 @@ setup(
     author_email='m@rtendevri.es',
     description='A WebSub hub, publisher and subscriber using Flask',
     long_description=description,
+    long_description_content_type='text/markdown',
     packages=find_packages(),
     zip_safe=False,
     platforms='any',
     install_requires=['Flask', 'requests'],
     extras_require={
-        'celery': ['celery>=4.3.0rc1'],
+        'celery': ['celery>=4.3.0'],
         'redis': ['redis'],
         'dev': [
             'flake8',
