@@ -22,9 +22,11 @@ setup(
         'celery': ['celery>=4.3.0'],
         'redis': ['redis'],
         'dev': [
+            'cachelib',
             'flake8',
             'pyOpenSSL',
             'pytest',
+            'pytest-celery',
             'pytest-cov',
             'pytest-runner',
             'Sphinx',

@@ -84,7 +84,7 @@ class AbstractTempSubscriberStorage(metaclass=abc.ABCMeta):
 
 class WerkzeugCacheTempSubscriberStorage(AbstractTempSubscriberStorage):
     def __init__(self, cache):
-        """Cache should share the API of werkzeug.contrib.cache.BaseCache"""
+        """Cache should share the API of cachelib.BaseCache"""
 
         self.cache = cache
 

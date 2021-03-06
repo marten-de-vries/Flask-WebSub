@@ -6,33 +6,24 @@ jobs:
 - job: 'Test'
   strategy:
     matrix:
-      Linux_Python35:
-        imageName: 'ubuntu-16.04'
-        python.version: '3.5'
       Linux_Python36:
-        imageName: 'ubuntu-16.04'
+        imageName: 'ubuntu-latest'
         python.version: '3.6'
-      Linux_Python37:
-        imageName: 'ubuntu-16.04'
-        python.version: '3.7'
-      MacOS_Python35:
-        imageName: 'macos-10.13'
-        python.version: '3.5'
+      Linux_Python39:
+        imageName: 'ubuntu-latest'
+        python.version: '3.9'
       MacOS_Python36:
-        imageName: 'macos-10.13'
+        imageName: 'macos-latest'
         python.version: '3.6'
-      MacOS_Python37:
-        imageName: 'macos-10.13'
-        python.version: '3.7'
-      Windows_Python35:
-        imageName: 'vs2017-win2016'
-        python.version: '3.5'
+      MacOS_Python39:
+        imageName: 'macos-latest'
+        python.version: '3.9'
       Windows_Python36:
-        imageName: 'vs2017-win2016'
+        imageName: 'windows-latest'
         python.version: '3.6'
-      Windows_Python37:
-        imageName: 'vs2017-win2016'
-        python.version: '3.7'
+      Windows_Python39:
+        imageName: 'windows-latest'
+        python.version: '3.9'
 
   pool:
     vmImage: $(imageName)

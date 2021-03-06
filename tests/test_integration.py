@@ -1,7 +1,7 @@
 from flask import Flask
 import pytest
 import requests
-from werkzeug.contrib.cache import SimpleCache
+from cachelib import SimpleCache
 
 import os
 import base64
@@ -155,10 +155,12 @@ def test_validator(hub, subscriber):
     on_error = Mock()
     subscriber.add_error_handler(on_error)
     error = 'invalid URL'
+
     @hub.register_validator
     def validate(callback_url, topic_url, *args):
         if not topic_url.startswith('http://example.com'):
             return error
+
     topic = 'http://invalid.com'
     id = subscriber.subscribe(topic_url=topic,
                               hub_url='http://localhost:5001/hub')

@@ -11,6 +11,7 @@ def serve_app(app, port, https=False):
     app.config['PREFERRED_URL_SCHEME'] = 'https' if https else 'http'
 
     app.config['SERVER_NAME'] = 'localhost:' + str(port)
+
     @app.route('/ping')
     def ping():
         return 'pong'

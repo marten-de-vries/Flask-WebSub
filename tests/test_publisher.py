@@ -51,6 +51,7 @@ def test_default_hub(app):
     @publisher()
     def resource():
         return 'Hello World!'
+
     resp = app.test_client().get('/resource')
     assert '<http://localhost/hub>; rel="hub"' in resp.headers['Link']
     assert '<http://localhost/resource>; rel="self"' in resp.headers['Link']
@@ -58,6 +59,7 @@ def test_default_hub(app):
 
 def test_global_hub(app):
     app.config['HUB_URL'] = '/abc'
+
     @app.route('/resource')
     @publisher()
     def resource():
