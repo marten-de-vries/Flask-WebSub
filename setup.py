@@ -30,7 +30,6 @@ setup(
             'pytest-cov',
             'pytest-runner',
             'Sphinx',
-            'Sphinx-PyPI-upload',
         ],
     },
     classifiers=[
