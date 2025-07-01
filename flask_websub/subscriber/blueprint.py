@@ -1,4 +1,4 @@
-from flask import abort, request, Blueprint
+from flask import abort, request, Blueprint, Response
 
 import contextlib
 import hmac
@@ -58,7 +58,13 @@ def build_blueprint(subscriber, url_prefix):
         else:  # unsubscribe
             del subscriber.storage[callback_id]
         subscriber.call_all('success_handlers', topic_url, callback_id, mode)
-        return get_query_arg('hub.challenge'), 200
+
+        challenge = get_query_arg('hub.challenge')
+        mimetype = 'application/octet-stream'
+        response = Response(challenge, status=200, mimetype=mimetype)
+        response.headers['Content-Security-Policy'] = "default-src 'none'"
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
 
     @callbacks.route('/<callback_id>', methods=['POST'])
     def callback(callback_id):
