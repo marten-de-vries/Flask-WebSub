@@ -1,7 +1,6 @@
-from flask import request, url_for, make_response, current_app, \
-                  _app_ctx_stack as stack
+from flask import request, url_for, make_response, current_app, g
 from werkzeug.routing import BuildError
-from jinja2 import Markup
+from markupsafe import Markup
 
 import functools
 
@@ -20,10 +19,10 @@ def init_publisher(app):
     @app.context_processor
     def inject_links():
         return {
-            'websub_self_url': stack.top.websub_self_url,
-            'websub_hub_url': stack.top.websub_hub_url,
-            'websub_self_link': stack.top.websub_self_link,
-            'websub_hub_link': stack.top.websub_hub_link,
+            'websub_self_url': g.websub_self_url,
+            'websub_hub_url': g.websub_hub_url,
+            'websub_self_link': g.websub_self_link,
+            'websub_hub_link': g.websub_hub_link,
         }
 
 
@@ -64,10 +63,10 @@ def publisher(self_url=None, hub_url=None):
                 except BuildError:
                     hub_url = current_app.config['HUB_URL']
 
-            stack.top.websub_self_url = self_url
-            stack.top.websub_hub_url = hub_url
-            stack.top.websub_self_link = Markup(SELF_LINK % self_url)
-            stack.top.websub_hub_link = Markup(HUB_LINK % hub_url)
+            g.websub_self_url = self_url
+            g.websub_hub_url = hub_url
+            g.websub_self_link = Markup(SELF_LINK % self_url)
+            g.websub_hub_link = Markup(HUB_LINK % hub_url)
 
             resp = make_response(topic_view(*args, **kwargs))
             resp.headers.add('Link', HEADER_VALUE % (self_url, hub_url))

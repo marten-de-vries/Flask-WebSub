@@ -6,8 +6,9 @@ import html.parser
 
 
 def discover(url, timeout=None):
-    """Discover the hub url and topic url of a given url. Firstly, by inspecting
-    the page's headers, secondarily by inspecting the content for link tags.
+    """Discover the hub url and topic url of a given url. Firstly, by
+    inspecting the page's headers, secondarily by inspecting the content for
+    link tags.
 
     timeout determines how long to wait for the url to load. It defaults to 3.
 
