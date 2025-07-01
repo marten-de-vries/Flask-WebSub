@@ -37,12 +37,8 @@ def validate_topic_existence(callback_url, topic_url, *args):
 
 hub.register_validator(validate_topic_existence)
 hub.schedule_cleanup()  # cleanup expired subscriptions once a day, by default
-
-
-@app.before_first_request
-def cleanup():
-    # or just cleanup manually at some point
-    hub.cleanup_expired_subscriptions.delay()
+# or just cleanup manually at some point
+# hub.cleanup_expired_subscriptions.delay()
 
 
 @app.route('/')

@@ -6,24 +6,24 @@ jobs:
 - job: 'Test'
   strategy:
     matrix:
-      Linux_Python36:
-        imageName: 'ubuntu-latest'
-        python.version: '3.6'
       Linux_Python39:
         imageName: 'ubuntu-latest'
         python.version: '3.9'
-      MacOS_Python36:
-        imageName: 'macos-latest'
-        python.version: '3.6'
+      Linux_Python313:
+        imageName: 'ubuntu-latest'
+        python.version: '3.13'
       MacOS_Python39:
         imageName: 'macos-latest'
         python.version: '3.9'
-      Windows_Python36:
-        imageName: 'windows-latest'
-        python.version: '3.6'
+      MacOS_Python313:
+        imageName: 'macos-latest'
+        python.version: '3.13'
       Windows_Python39:
         imageName: 'windows-latest'
         python.version: '3.9'
+      Windows_Python313:
+        imageName: 'windows-latest'
+        python.version: '3.13'
 
   pool:
     vmImage: $(imageName)
@@ -38,11 +38,11 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
-      python setup.py lint
+      flake8 flask_websub tests
     displayName: 'Run lint tests'
 
   - script: |
-      python setup.py test
+      pytest
     displayName: 'Run pytest tests'
 
   - task: PublishTestResults@2
@@ -51,7 +51,7 @@ jobs:
       testRunTitle: 'Python $(python.version)'
     condition: succeededOrFailed()
 
-  - task: PublishCodeCoverageResults@1
+  - task: PublishCodeCoverageResults@2
     inputs:
       codeCoverageTool: Cobertura
       summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'

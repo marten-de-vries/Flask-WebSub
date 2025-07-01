@@ -1,7 +1,9 @@
 import threading
 import contextlib
 
-from flask import request, url_for
+from flask import url_for
+from werkzeug.serving import make_server
+
 import requests
 
 
@@ -16,12 +18,8 @@ def serve_app(app, port, https=False):
     def ping():
         return 'pong'
 
-    @app.route('/kill', methods=['POST'])
-    def kill():
-        request.environ['werkzeug.server.shutdown']()
-        return 'bye'
-
-    t = threading.Thread(target=lambda: app.run(port=port, **opts))
+    s = make_server("localhost", port, app, **opts)
+    t = threading.Thread(target=s.serve_forever)
     t.start()
 
     with app.app_context():
@@ -37,5 +35,5 @@ def serve_app(app, port, https=False):
         yield
 
         # tear down the server
-        requests.post(url_for('kill'), verify=False)
+        s.shutdown()
     t.join()
